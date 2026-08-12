@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aşkıma Özel Flappy Bird</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            color: white;
+            overflow: hidden;
+        }
+        h1 {
+            color: #ff4b72;
+            text-shadow: 0 0 10px rgba(255, 75, 114, 0.5);
+            margin-bottom: 5px;
+            font-size: 28px;
+        }
+        p { color: #cbd5e1; margin-top: 0; margin-bottom: 15px; font-size: 14px; }
+        
+        .game-container {
+            position: relative;
+            width: 360px;
+            height: 520px;
+        }
+
+        canvas {
+            border: 3px solid #ff4b72;
+            border-radius: 15px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+            cursor: pointer;
+            background-color: #334155;
+        }
+
+        #gameOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-sizing: border-box;
+            padding: 20px;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 2px solid #ff4b72;
+            padding: 25px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(255, 75, 114, 0.3);
+            width: 80%;
+        }
+
+        .card h2 { color: #ff4b72; margin-top: 0; font-size: 24px; }
+        .card .score-text { font-size: 18px; color: #e2e8f0; margin: 10px 0; }
+        .card .message { font-size: 20px; font-weight: bold; color: #38bdf8; margin: 15px 0; }
+
+        .btn-restart {
+            background: linear-gradient(135deg, #ff4b72, #ff758c);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 75, 114, 0.4);
+            transition: transform 0.2s;
+        }
+        .btn-restart:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <h1>Flappy Girlfriend! ❤️</h1>
+    <p>Ekrana Tıkla veya BOŞLUK Tuşuna Bas</p>
+
+    <div class="game-container">
+        <canvas id="canvas" width="360" height="520"></canvas>
+
+        <div id="gameOverlay">
+            <div class="card">
+                <h2 id="overlayTitle">HAZIR MISIN?</h2>
+                <div class="score-text">Skorun: <span id="finalScore" style="color:#ff4b72; font-weight:bold;">0</span></div>
+                <div class="message" id="loveMessage">Başlamak için ekrana tıkla!</div>
+                <button class="btn-restart" id="restartBtn" onclick="resetGame(event)">Tekrar Oyna 🔄</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="jumpSound" src="ses.mp3" preload="auto"></audio>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const jumpSound = document.getElementById("jumpSound");
+
+        const overlay = document.getElementById("gameOverlay");
+        const finalScoreElem = document.getElementById("finalScore");
+        const loveMessageElem = document.getElementById("loveMessage");
+        const restartBtn = document.getElementById("restartBtn");
+
+        const birdImg = new Image();
+        birdImg.src = "yuz.jpeg";
+
+        const bgImg = new Image();
+        bgImg.src = "arkaplan.jpeg";
+
+        let bX = 60;
+        let bY = 200;
+        let gravity = 0.12;
+        let velocity = 0;
+        let jump = -3.8;
+        let score = 0;
+        let pipeGap = 195;
+        let pipeWidth = 52;
+        let pipes = [];
+        let gameStarted = false;
+        let isGameOver = false;
+
+        function initPipes() {
+            pipes = [];
+            pipes.push({
+                x: canvas.width,
+                y: Math.floor(Math.random() * 140) - 150,
+                passed: false
+            });
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.code === "Space") handleAction();
+        });
+        canvas.addEventListener("click", handleAction);
+
+        function handleAction() {
+            if (isGameOver) return;
+            if (!gameStarted) {
+                gameStarted = true;
+                overlay.style.display = "none";
+            }
+            velocity = jump;
+            if (jumpSound) {
+                jumpSound.currentTime = 0;
+                jumpSound.play().catch(() => {});
+            }
+        }
+
+        function triggerGameOver() {
+            isGameOver = true;
+            finalScoreElem.innerText = score;
+
+            if (score <= 10) {
+                loveMessageElem.innerText = "Bi daha dene aşkım 💕";
+            } else if (score <= 50) {
+                loveMessageElem.innerText = "Afferin aşkım 👏💖";
+            } else if (score <= 100) {
+                loveMessageElem.innerText = "Süper bir tanem! 🌟❤️";
+            } else {
+                loveMessageElem.innerText = "Seni çok seviyorum! 🥰💍";
+            }
+
+            document.getElementById("overlayTitle").innerText = "OYUN BİTTİ";
+            restartBtn.style.display = "inline-block";
+            overlay.style.display = "flex";
+        }
+
+        function resetGame(e) {
+            if (e) e.stopPropagation();
+            bY = 200;
+            velocity = 0;
+            score = 0;
+            isGameOver = false;
+            gameStarted = false;
+            initPipes();
+            
+            document.getElementById("overlayTitle").innerText = "HAZIR MISIN?";
+            loveMessageElem.innerText = "Başlamak için ekrana tıkla!";
+            restartBtn.style.display = "none";
+            overlay.style.display = "flex";
+        }
+
+        // Gerçekçi 3D Boru Çizim Fonksiyonu
+        function drawRealisticPipe(x, y, width, height, isTop) {
+            ctx.save();
+
+            // Metalik Yeşil Degrade
+            let pipeGradient = ctx.createLinearGradient(x, 0, x + width, 0);
+            pipeGradient.addColorStop(0, '#15803d');
+            pipeGradient.addColorStop(0.2, '#4ade80');
+            pipeGradient.addColorStop(0.4, '#86efac');
+            pipeGradient.addColorStop(0.7, '#22c55e');
+            pipeGradient.addColorStop(1, '#052e16');
+
+            // Boru Gövdesi
+            ctx.fillStyle = pipeGradient;
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeStyle = '#052e16';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, width, height);
+
+            // Boru Kapak Bilgileri (Geniş Ağız)
+            let capWidth = width + 10;
+            let capHeight = 24;
+            let capX = x - 5;
+            let capY = isTop ? (y + height - capHeight) : y;
+
+            // Kapak İçin Degrade
+            let capGradient = ctx.createLinearGradient(capX, 0, capX + capWidth, 0);
+            capGradient.addColorStop(0, '#166534');
+            capGradient.addColorStop(0.2, '#4ade80');
+            capGradient.addColorStop(0.4, '#bbf7d0');
+            capGradient.addColorStop(0.7, '#22c55e');
+            capGradient.addColorStop(1, '#052e16');
+
+            // Kapak Çizimi ve Gölgesi
+            ctx.fillStyle = capGradient;
+            ctx.fillRect(capX, capY, capWidth, capHeight);
+            ctx.strokeRect(capX, capY, capWidth, capHeight);
+
+            // Kapak Altı Gölgesi (Derinlik Hissi)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            if (isTop) {
+                ctx.fillRect(capX, capY, capWidth, 4);
+            } else {
+                ctx.fillRect(capX, capY + capHeight - 4, capWidth, 4);
+            }
+
+            ctx.restore();
+        }
+
+        function draw() {
+            if (bgImg.complete && bgImg.naturalWidth !== 0) {
+                ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = "#334155";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            if (gameStarted && !isGameOver) {
+                for (let i = 0; i < pipes.length; i++) {
+                    let topPipeHeight = pipes[i].y + 200;
+                    let bottomPipeY = topPipeHeight + pipeGap;
+                    let bottomPipeHeight = canvas.height - bottomPipeY;
+
+                    // Gerçekçi Üst ve Alt Boruları Çiz
+                    drawRealisticPipe(pipes[i].x, 0, pipeWidth, topPipeHeight, true);
+                    drawRealisticPipe(pipes[i].x, bottomPipeY, pipeWidth, bottomPipeHeight, false);
+
+                    pipes[i].x -= 1.1;
+
+                    let lastPipe = pipes[pipes.length - 1];
+                    if (lastPipe && lastPipe.x < canvas.width - 220) {
+                        pipes.push({
+                            x: canvas.width,
+                            y: Math.floor(Math.random() * 140) - 150,
+                            passed: false
+                        });
+                    }
+
+                    let birdSize = 34;
+                    if (bX + birdSize > pipes[i].x && bX < pipes[i].x + pipeWidth &&
+                        (bY < topPipeHeight || bY + birdSize > bottomPipeY) || 
+                        bY + birdSize >= canvas.height || bY <= 0) {
+                        triggerGameOver();
+                    }
+
+                    if (pipes[i].x + pipeWidth < bX && !pipes[i].passed) {
+                        score++;
+                        pipes[i].passed = true;
+                    }
+                }
+
+                if (pipes.length > 0 && pipes[0].x < -pipeWidth - 10) {
+                    pipes.shift();
+                }
+
+                velocity += gravity;
+                bY += velocity;
+            }
+
+            if (birdImg.complete && birdImg.naturalWidth !== 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(bX + 18, bY + 18, 20, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.clip();
+                ctx.drawImage(birdImg, bX - 2, bY - 2, 40, 40);
+                ctx.restore();
+                
+                ctx.beginPath();
+                ctx.arc(bX + 18, bY + 18, 20, 0, Math.PI * 2);
+                ctx.strokeStyle = "#ff4b72";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = "#ff4b72";
+                ctx.beginPath();
+                ctx.arc(bX + 18, bY + 18, 18, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (gameStarted && !isGameOver) {
+                ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+                if (ctx.roundRect) {
+                    ctx.roundRect(15, 15, 110, 40, 10);
+                } else {
+                    ctx.fillRect(15, 15, 110, 40);
+                }
+                ctx.fill();
+                
+                ctx.fillStyle = "#FFF";
+                ctx.font = "bold 18px Arial";
+                ctx.fillText("Skor: " + score, 25, 42);
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        initPipes();
+        restartBtn.style.display = "none";
+        draw();
+    </script>
+</body>
+</html>
