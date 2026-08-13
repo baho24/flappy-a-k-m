@@ -1,16 +1,148 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Flappy AKM</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background-color: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+            width: 320px;
+            height: 480px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #gameOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            z-index: 10;
+        }
+        .btn-restart {
+            margin-top: 15px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #2eb82e;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="canvas" width="320" height="480"></canvas>
+    <div id="gameOverlay">
+        <div style="font-size: 20px; font-weight: bold; margin-bottom: 10px;" id="finalScoreText">Skor: 0</div>
+        <div id="loveMessage" style="font-size: 16px; font-weight: bold; padding: 0 10px;">Başlamak için ekrana tıkla!</div>
+        <button class="btn-restart" id="restartBtn" style="display: none;">Tekrar Oyna</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const overlay = document.getElementById("gameOverlay");
+const finalScoreText = document.getElementById("finalScoreText");
+const loveMessageElem = document.getElementById("loveMessage");
+const restartBtn = document.getElementById("restartBtn");
+
+const birdImg = new Image();
+birdImg.src = "yuz.jpeg";
+
+const bgImg = new Image();
+bgImg.src = "arka plan.jpeg";
+
+let bx = 60;
+let bY = 200;
+let gravity = 0.25;
+let velocity = 0;
+let jumpPower = -5.5;
+let score = 0;
+let pipeGap = 140;
+let pipeWidth = 52;
+let pipes = [];
+
+let gameStarted = false;
+let isGameOver = false;
+
+function initPipes() {
+    pipes = [];
+    pipes[0] = {
+        x: canvas.width,
+        top: Math.floor(Math.random() * (canvas.height - pipeGap - 100)) + 40
+    };
+}
+
+function jump() {
+    velocity = jumpPower;
+}
+
+function resetGame() {
+    bY = 200;
+    velocity = 0;
+    score = 0;
+    gameStarted = true;
+    isGameOver = false;
+    initPipes();
+    overlay.style.display = "none";
+}
+
+restartBtn.addEventListener("click", function(e) {
+    e.stopPropagation();
+    resetGame();
+});
+
 function handleInput(e) {
     if (e.target.tagName === "BUTTON") return;
-    
+
     if (!gameStarted) {
         gameStarted = true;
         overlay.style.display = "none";
-    }
-    
-    if (isGameOver) {
+        jump();
         return;
     }
-    
-    jump();
+
+    if (!isGameOver) {
+        jump();
+    }
 }
 
 window.addEventListener("keydown", function(e) {
@@ -20,8 +152,96 @@ window.addEventListener("keydown", function(e) {
 });
 
 window.addEventListener("touchstart", function(e) {
-    e.preventDefault();
+    if (e.target.tagName !== "BUTTON") {
+        e.preventDefault();
+    }
     handleInput(e);
 }, { passive: false });
 
 window.addEventListener("mousedown", handleInput);
+
+function draw() {
+    if (bgImg.complete && bgImg.naturalWidth !== 0) {
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    } else {
+        ctx.fillStyle = "#70c5ce";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    if (gameStarted && !isGameOver) {
+        velocity += gravity;
+        bY += velocity;
+
+        for (let i = 0; i < pipes.length; i++) {
+            let constant = pipes[i].top + pipeGap;
+
+            ctx.fillStyle = "#73bf2e";
+            ctx.fillRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
+            ctx.fillRect(pipes[i].x, constant, pipeWidth, canvas.height - constant);
+
+            ctx.strokeStyle = "#53801b";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(pipes[i].x, 0, pipeWidth, pipes[i].top);
+            ctx.strokeRect(pipes[i].x, constant, pipeWidth, canvas.height - constant);
+
+            pipes[i].x -= 2;
+
+            if (pipes[i].x === 120) {
+                pipes.push({
+                    x: canvas.width,
+                    top: Math.floor(Math.random() * (canvas.height - pipeGap - 100)) + 40
+                });
+            }
+
+            if (bx + 30 >= pipes[i].x && bx <= pipes[i].x + pipeWidth && (bY <= pipes[i].top || bY + 30 >= constant)) {
+                endGame();
+            }
+
+            if (pipes[i].x === 50) {
+                score++;
+            }
+        }
+
+        if (pipes.length > 0 && pipes[0].x < -pipeWidth) {
+            pipes.shift();
+        }
+
+        if (bY + 30 >= canvas.height || bY <= 0) {
+            endGame();
+        }
+    }
+
+    if (birdImg.complete && birdImg.naturalWidth !== 0) {
+        ctx.drawImage(birdImg, bx, bY, 34, 34);
+    } else {
+        ctx.fillStyle = "#ff4b72";
+        ctx.beginPath();
+        ctx.arc(bx + 17, bY + 17, 17, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    if (gameStarted && !isGameOver) {
+        ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+        ctx.fillRect(15, 15, 110, 40);
+
+        ctx.fillStyle = "#FFF";
+        ctx.font = "bold 18px Arial";
+        ctx.fillText("Skor: " + score, 25, 42);
+    }
+
+    requestAnimationFrame(draw);
+}
+
+function endGame() {
+    isGameOver = true;
+    finalScoreText.textContent = "Skor: " + score;
+    loveMessageElem.textContent = "Kaybettin! Tekrar denemek için butona bas.";
+    restartBtn.style.display = "block";
+    overlay.style.display = "flex";
+}
+
+initPipes();
+draw();
+</script>
+</body>
+</html>
