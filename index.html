@@ -337,6 +337,12 @@
         initPipes();
         restartBtn.style.display = "none";
         draw();
+        window.addEventListener("touchstart", function(e) {
+    if (e.target.tagName !== "BUTTON") {
+        e.preventDefault();
+    }
+    jump();
+}, { passive: false });
     </script>
 </body>
 </html>
