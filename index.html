@@ -337,12 +337,33 @@
         initPipes();
         restartBtn.style.display = "none";
         draw();
-        window.addEventListener("touchstart", function(e) {
-    if (e.target.tagName !== "BUTTON") {
-        e.preventDefault();
+       function handleInput(e) {
+    if (e.target.tagName === "BUTTON") return;
+    
+    if (!gameStarted) {
+        gameStarted = true;
+        overlay.style.display = "none";
     }
+    
+    if (isGameOver) {
+        return;
+    }
+    
     jump();
+}
+
+window.addEventListener("keydown", function(e) {
+    if (e.code === "Space") {
+        handleInput(e);
+    }
+});
+
+window.addEventListener("touchstart", function(e) {
+    e.preventDefault();
+    handleInput(e);
 }, { passive: false });
+
+window.addEventListener("mousedown", handleInput);
     </script>
 </body>
 </html>
